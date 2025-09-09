@@ -825,7 +825,7 @@
 
             anon.addEventListener('close', (event) => {
                 console.log('(anon)', event.code, event.reason, event.wasClean);
-                setTimeout(connect, 1e4);
+                setTimeout(connectAnon, 1e4);
             });
 
         }
