@@ -189,8 +189,8 @@
         const join_div = document.querySelector('.join');
 
         input_div.oninput = clearInput;
-        channel_div.oninput = clearStrict;
-        pass_div.oninput = clearStrict;
+        channel_div.oninput = clearInput;
+        pass_div.oninput = clearInput;
         input_div.addEventListener('keydown', (event) => {
             if(event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -205,14 +205,6 @@
 
         function clearInput(event) {
             const input = event.target;
-            if(input.textContent === '') {
-                input.innerHTML = '';
-            }
-        }
-
-        function clearStrict(event) {
-            const input = event.target;
-            input.textContent = input.textContent.replace(/\s+/g,'');
             if(input.textContent === '') {
                 input.innerHTML = '';
             }
@@ -309,9 +301,11 @@
 
         join_div.onclick = async () => {
             join_div.blur();
-            if(/^\w{3,25}$/.test(channel_div.textContent) && pass_div.textContent !== '') {
-                channel = channel_div.textContent.toLowerCase();
-                password = pass_div.textContent;
+            const chan_input = channel_div.textContent.replace(/\s+/g, '').toLowerCase();
+            const pass_input = pass_div.textContent.replace(/\s+/g, '');
+            if(/^\w{3,25}$/.test(chan_input) && pass_input !== '') {
+                channel = chan_input;
+                password = pass_input;
                 key = await generateKey(password, channel);
 
                 setup_div.classList.add('hidden');
