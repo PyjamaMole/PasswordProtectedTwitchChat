@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPTC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #18181f;
+            margin: 0;
+            height: 100vh;
+            font-family: "Atkinson Hyperlegible Next", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #efeff1;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .button {
+            text-align: center;
+            background-color: #9147ff;
+            border-radius: 60px;
+            font-size: 60px;
+            padding: 30px 40px;
+            border: none;
+            color: #efeff1;
+        }
+
+        .button:hover {
+            background-color: #772ce8;
+            cursor: pointer;
+        }
+
+        .button:focus {
+            background-color: #772ce8;
+            outline: none;
+        }
+
+        .button:active {
+            background-color: #5c16c5;
+        }
+
+        .chat {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: var(--width);
+            font-size: 16px;
+            line-height: 24px;
+        }
+
+        .message-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 0;
+        }
+
+        .spacer {
+            margin-top: auto;
+        }
+
+        .message {
+            word-break: break-all;
+            max-width: 100%;
+            box-sizing: border-box;
+            white-space: pre-wrap;
+            border-bottom: #adadb8 2px solid;
+            padding: 4px 0;
+        }
+
+        .message:last-of-type {
+            border-bottom: none;
+        }
+
+        .input-box {
+            padding: 10px;
+        }
+
+        .input {
+            border-radius: 5px;
+            border: #efeff1 1px solid;
+            padding: 8px;
+            outline: none;
+            word-break: break-all;
+            width: 100%;
+            box-sizing: border-box;
+            white-space: pre-wrap;
+        }
+
+        .input:empty::before {
+            content: "Send a message";
+            color: #adadb8;
+            cursor: text;
+        }
+
+        .input:focus {
+            border-color: #9147ff;
+            outline: #9147ff 2px solid;
+            outline-offset: 0;
+        }
+
+        .disabled {
+            border-color: #ff8280 !important;
+            outline-color: #ff8280 !important;
+        }
+
+        .pass-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .query {
+            text-align: center;
+            border-radius: 60px;
+            border: #9147ff 5px solid;
+            font-size: 60px;
+            padding: 30px 40px;
+            max-width: var(--width);
+            word-break: break-all;
+            min-width: 250px;
+        }
+
+        .query:focus {
+            outline: none;
+        }
+
+        .channel:empty::before {
+            content: "Channel";
+            color: #adadb8;
+            cursor: text;
+        }
+
+        .password:empty::before {
+            content: "Password";
+            color: #adadb8;
+            cursor: text;
+        }
+
+    </style>
+</head>
+<body>
+    <button class="button auth hidden">Login</button>
+    <div class="pass-box hidden">
+        <div class="channel query" contenteditable="true"></div>
+        <div class="password query" contenteditable="true"></div>
+        <button class="join button">Join</button>
+    </div>
+    <div class="chat hidden">
+        <div class="message-box">
+            <div class="spacer"></div>
+        </div>
+        <div class="input-box">
+            <div class="input disabled" contenteditable="plaintext-only"></div>
+        </div>
+    </div>
+    <script>
+        let canSendMessage = false;
+        let token, username;
+        let channel, password, key;
+        let twitch, anon;
+
+        (()=> {
+            const aspect = (1+Math.sqrt(5))/2;
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const scale = Math.min(width, height/aspect);
+            document.documentElement.style.setProperty('--width', scale + 'px');
+        })()
+
+        const auth_div = document.querySelector('.auth');
+        const chat_div = document.querySelector('.chat');
+        const input_div = document.querySelector('.input');
+        const box_div = document.querySelector('.message-box');
+        const setup_div = document.querySelector('.pass-box');
+        const channel_div = document.querySelector('.channel');
+        const pass_div = document.querySelector('.password');
+        const join_div = document.querySelector('.join');
+
+        input_div.oninput = clearInput;
+        channel_div.oninput = clearInput;
+        pass_div.oninput = clearInput;
+        input_div.addEventListener('keydown', (event) => {
+            if(event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                if(canSendMessage) {
+                    sendMessage(input_div.textContent);
+                    if(!event.ctrlKey) {
+                        input_div.innerHTML = '';
+                    }
+                }
+            }
+        });
+
+        function clearInput(event) {
+            const input = event.target;
+            if(input.textContent === '') {
+                input.innerHTML = '';
+            }
+        }
+
+        async function sendMessage(message) {
+            const encoded = await encode(message, key);
+            if(encoded === 0) {
+                const err_div = document.createElement('div');
+                err_div.classList.add('message');
+                err_div.style.color = '#ff8280';
+                err_div.textContent = 'error encoding message';
+                box_div.appendChild(err_div);
+                err_div.scrollIntoView();
+                setTimeout(() => {
+                    err_div.remove();
+                }, 5000);
+            }
+            else if(encoded === 1) {
+                const long_div = document.createElement('div');
+                long_div.classList.add('message');
+                long_div.style.color = '#ff8280';
+                long_div.textContent = 'message too long';
+                box_div.appendChild(long_div);
+                long_div.scrollIntoView();
+                setTimeout(() => {
+                    long_div.remove();
+                }, 5000);
+            }
+            else {
+                sendMessages(encoded);
+            }
+        }
+
+        function sendMessages(messages) {
+            if(messages.length > 0) {
+                canSendMessage = false;
+                input_div.classList.add('disabled');
+                const message = messages.shift();
+                twitch.send('PRIVMSG #' + channel + ' :' + message);
+                setTimeout(() => {
+                    sendMessages(messages);
+                }, msgDelay);
+            }
+            else {
+                canSendMessage = true;
+                input_div.classList.remove('disabled');
+            }
+        }
+
+        const UTF8 = {
+            encoder: new TextEncoder(),
+            decoder: new TextDecoder(),
+            encode(str) {
+                return this.encoder.encode(str);
+            },
+            decode(arr) {
+                return this.decoder.decode(arr);
+            }
+        }
+
+        const UTF16 = {
+            encode: UTF16encode,
+            decoder: new TextDecoder('utf-16'),
+            decode(arr) {
+                return this.decoder.decode(arr);
+            }
+        }
+
+        main();
+        async function main() {
+
+            const hashRaw = location.hash.slice(1);
+            const hashData = new URLSearchParams(hashRaw);
+            if(hashData.has('access_token')) {
+                location.hash = '';
+            }
+
+            let state = localStorage.getItem('state');
+            if(state && hashData.has('access_token') && hashData.get('state') === state) {
+                localStorage.setItem('token', hashData.get('access_token'));
+                localStorage.removeItem('state');
+            }
+
+            token = localStorage.getItem('token');
+            if(!token || !validateToken()) {
+                requestAuth();
+                return;
+            }
+
+            setup_div.classList.remove('hidden');
+        }
+
+
+        join_div.onclick = async () => {
+            join_div.blur();
+            if(/^\w{3,25}$/.test(channel_div.textContent) && pass_div.textContent !== '') {
+                channel = channel_div.textContent;
+                password = pass_div.textContent;
+                key = await generateKey(password, channel);
+
+                setup_div.classList.add('hidden');
+                chat_div.classList.remove('hidden');
+                connect();
+                connectAnon();
+            }
+        }
+
+        
+        function requestAuth() {
+            state = crypto.randomUUID();
+            localStorage.setItem('state', state);
+            auth_div.classList.remove('hidden');
+            auth_div.onclick = () => {location.href = 'https://id.twitch.tv/oauth2/authorize?response_type=token&client_id=8avt2003sugb0ynmwfzgtwnk3gn4x7&redirect_uri=https://PyjamaMole.github.io/PasswordProtectedTwitchChat&scope=chat%3Aread+chat%3Aedit&state=' + state}
+        }
+
+
+        async function validateToken() {
+            const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+                headers: {
+                    Authorization: 'OAuth ' + token
+                }
+            })
+            if(!response.ok) {
+                return false;
+            }
+            const data = await response.json();
+            username = data.login;
+            if(data.expires_in < 86400) {
+                return false;
+            }
+            return true;
+        }
+
+        
+        const messages = new Map();
+
+        const chunkLength = 923;
+        let msgDelay = 1875;
+
+        let clean = setInterval(cleanFunc, 8*msgDelay);
+        function cleanFunc() {
+            const now = Date.now();
+            for(const [id, obj] of messages) {
+                if(now - obj.init > 32*msgDelay) {
+                    messages.delete(id);
+                }
+            }
+        }
+
+        async function generateKey(password, channel) {
+            const passbuff = UTF8.encode(password);
+            const userbuff = UTF8.encode(channel);
+            const salt = await crypto.subtle.digest('SHA-256', userbuff);
+
+            const importedKey = await crypto.subtle.importKey(
+                'raw',
+                passbuff,
+                'PBKDF2',
+                false,
+                ['deriveBits', 'deriveKey']
+            );
+            
+            const derivedKey = await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                importedKey,
+                {
+                    name: 'AES-GCM',
+                    length: 256
+                },
+                false,
+                ['encrypt', 'decrypt']
+            );
+
+            return derivedKey;
+        }
+
+
+
+
+
+
+
+        async function encode(string, key) {
+            try {
+                let flags = 0;
+
+                let encoded = UTF8.encode(string);
+                if(encoded.length > 2*string.length) {
+                    encoded = UTF16.encode(string);
+                    flags += 2;
+                }
+                const encodedChunks = Math.ceil((encoded.length+16)/chunkLength);
+
+                if(encodedChunks > 1) {
+                    const compressed = await compress(encoded);
+                    const compressedChunks = Math.ceil((compressed.length+16)/chunkLength);
+
+                    if(Math.min(encodedChunks, compressedChunks) > 16) {
+                        return 1;
+                    }
+                    if(compressedChunks < encodedChunks) {
+                        encoded = compressed;
+                        flags += 4;
+                    }
+                }
+
+                const [encrypted, iv] = await encrypt(encoded, key);
+                const split = splitData(encrypted, iv, flags);
+                return toBase32768(split);
+
+            } catch(err) {
+                console.log(err);
+                return 0;
+            }
+        }
+
+        async function decode(string, key) {
+            try {
+                const chunk = fromBase32768(string);
+                if(chunk === null) {
+                    return null;
+                }
+
+                const combined = combineData(chunk);
+                if(combined === null) {
+                    return null;
+                }
+                const [flags, iv, encrypted] = combined;
+                const decrypted = await decrypt(encrypted, key, iv);
+
+                let decompressed = decrypted;
+                if(flags>>1) {
+                    decompressed = await decompress(decrypted);
+                }
+
+                if(flags&1) {
+                    return UTF16.decode(decompressed);
+                } else {
+                    return UTF8.decode(decompressed);
+                }
+
+            } catch(err) {
+                console.log(err);
+                return null;
+            }
+        }
+
+
+
+
+
+        function toBase32768(data) {
+            const messages = new Array(data.length);
+
+            for(let i = 0; i < data.length; i++) {
+                const part = data[i];
+                const length = Math.ceil(part.length*8/15);
+                const nums = new Array(length);
+
+                let buffer = 0;
+                let bits = 0;
+                let ind = 0;
+
+                for(const byte of part) {
+                    buffer = (byte << bits) | buffer;
+                    bits += 8;
+
+                    while(bits >= 15) {
+                        nums[ind] = buffer & 0x7FFF;
+                        buffer >>= 15;
+                        bits -= 15;
+                        ind++;
+                    }
+                }
+                if(bits !== 0) {
+                    const pad = new Uint16Array(1);
+                    crypto.getRandomValues(pad);
+                    nums[ind] = ((pad << bits) | buffer) & 0x7FFF;
+                }
+
+                const codePoints = nums.map(num => {
+                    if(num < 0x1800) {
+                        num += 0x3400;
+                    }
+                    else if(num < 0x5800) {
+                        num += 0x4000;
+                    }
+                    else {
+                        num += 0x5400;
+                    }
+                    return String.fromCharCode(num);
+                });
+
+                messages[i] = codePoints.join('');
+            }
+
+            return messages;
+        }
+
+        function fromBase32768(string) {
+            const first = string.charCodeAt(0)
+            if(first < 0x3400 | first >= 0x4400 | string.length < 17) {
+                return null;
+            }
+            const nums = new Array(string.length);
+            nums[0] = first - 0x3400;
+
+            for(let i = 1; i < string.length; i++) {
+                const num = string.charCodeAt(i);
+                if(num >= 0x3400 && num < 0x4C00) {
+                    nums[i] = num - 0x3400;
+                }
+                else if(num >= 0x5800 && num < 0x9800) {
+                    nums[i] = num - 0x4000;
+                }
+                else if(num >= 0xAC00 && num < 0xD400) {
+                    nums[i] = num - 0x5400;
+                }
+                else {
+                    return null;
+                }
+            }
+
+            const empty = (nums[0]>>8) ^ nums[0];
+            const length = Math.floor(15*string.length/8) - (empty&1);
+            const data = new Uint8Array(length);
+
+            let buffer = 0;
+            let bits = 0;
+            let ind = 0;
+
+            for(const num of nums) {
+                buffer = (num << bits) | buffer;
+                bits += 15;
+
+                while(bits >= 8) {
+                    data[ind] = buffer & 0xFF;
+                    buffer >>= 8;
+                    bits -= 8;
+                    ind++;
+                }
+            }
+
+            return data;
+        }
+
+
+
+
+
+
+        function splitData(data, iv, flags) {
+            const chunks = Math.ceil(data.length/chunkLength);
+            const size = Math.ceil(data.length/chunks);
+            const index = chunks-1;
+
+            const split = new Array(chunks);
+            for(let i = 0; i < chunks; i++) {
+                const chunk = data.subarray(i*size, (i+1)*size);
+                const length = chunk.length + 14;
+                const empty = (length*8)%15 < 8;
+                const part = new Uint8Array(length);
+
+                const ind = ((i<<4) | index) ^ chunk[0];
+                const obv = iv.map(byte => byte ^ ind);
+                const flag = (flags | empty) ^ ind;
+
+                part[0] = ind;
+                part[1] = flag & 0xF;
+                part.set(obv, 2);
+                part.set(chunk, 14);
+
+                split[i] = part;
+            }
+
+            return split;
+        }
+
+        function combineData(data) {
+            const flags = ((data[1] ^ data[0]) >> 1) & 3;
+            const iv = data.subarray(2, 14).map(byte => byte ^ data[0]);
+            const ind = data[0] ^ data[14];
+            const chunk = data.subarray(14);
+
+            const length = (ind & 0xF) + 1;
+            const count = ind >> 4;
+
+            const id = String.fromCharCode(...iv);
+            let msg = messages.get(id);
+
+            if(msg === undefined) {
+                msg = {
+                    flags,
+                    length,
+                    data: new Array(length),
+                    total: 0,
+                    count: 0,
+                    check: 0,
+                    init: Date.now(),
+                    error: false
+                }
+                messages.set(id, msg);
+            }
+            else if(msg.error) {
+                return null;
+            }
+            else if(msg.flags !== flags || msg.length !== length) {
+                msg.error = true;
+                return null;
+            }
+
+            msg.data[count] = chunk;
+            msg.total += chunk.length;
+            msg.count++;
+            msg.check |= 1<<count;
+
+            if(msg.count === msg.length && msg.check === (1<<msg.length)-1) {
+                messages.delete(id);
+
+                const combined = new Uint8Array(msg.total);
+                let offset = 0;
+                for(const chunk of msg.data) {
+                    combined.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                return [flags, iv, combined];
+            }
+
+            return null;
+        }
+
+
+
+
+
+
+
+
+        async function encrypt(data, key) {
+            const iv = new Uint8Array(12);
+            crypto.getRandomValues(iv);
+
+            const encrypted = await crypto.subtle.encrypt(
+                {
+                    name: 'AES-GCM',
+                    iv
+                },
+                key,
+                data
+            );
+            return [new Uint8Array(encrypted), iv];
+        }
+
+        async function decrypt(data, key, iv) {
+            const decrypted = await crypto.subtle.decrypt(
+                {
+                    name: 'AES-GCM',
+                    iv
+                },
+                key,
+                data
+            );
+            return new Uint8Array(decrypted);
+        }
+
+
+
+
+
+
+        function compress(data) {
+            const stream = new CompressionStream('deflate');
+            const writer = stream.writable.getWriter();
+            writer.write(data);
+            writer.close();
+            return streamToArray(stream.readable);
+        }
+
+        function decompress(data) {
+            const stream = new DecompressionStream('deflate');
+            const writer = stream.writable.getWriter();
+            writer.write(data);
+            writer.close();
+            return streamToArray(stream.readable);
+        }
+
+        async function streamToArray(stream) {
+            const reader = stream.getReader();
+            const chunks = [];
+            let length = 0;
+            while(true) {
+                const {done, value} = await reader.read();
+                if(done) {
+                    break;
+                }
+                chunks.push(value);
+                length += value.length;
+            }
+            const array = new Uint8Array(length);
+            let offset = 0;
+            for(const chunk of chunks) {
+                array.set(chunk, offset);
+                offset += chunk.length;
+            }
+            return array;
+        }
+
+
+
+
+
+
+        function UTF16encode(string) {
+            const array = new Uint8Array(2*string.length);
+
+            for(let i = 0; i < string.length; i++) {
+                const char = string.charCodeAt(i);
+                array[2*i] = char & 0xFF;
+                array[2*i+1] = char >> 8;
+            }
+
+            return array;
+        }
+
+
+
+
+        function connect() {
+            console.log('connecting to TMI...');
+
+            twitch = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
+
+            twitch.addEventListener('open', () => {
+                twitch.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+            });
+
+            twitch.addEventListener('message', (event) => {
+                const messages = event.data;
+
+                if(messages.startsWith('PING')) {
+                    twitch.send(messages.replace("PING","PONG"));
+                }
+                else if(messages.startsWith(':tmi.twitch.tv CAP * ACK')) {
+                    twitch.send('PASS oauth:' + token);
+                    twitch.send('NICK '+ username);
+                }
+                else if(messages.startsWith(':tmi.twitch.tv 001')) {
+                    canSendMessage = true;
+                    input_div.classList.remove('disabled');
+                    console.log('-CONNECTED-');
+                }
+
+            });
+
+            twitch.addEventListener('error', (event) => {
+                console.error(event);
+            });
+
+            twitch.addEventListener('close', (event) => {
+                canSendMessage = false;
+                input_div.classList.add('disabled');
+                console.log(event.code, event.reason, event.wasClean);
+                if(!validateToken()) {
+                    chat_div.classList.add('hidden');
+                    requestAuth();
+                    return;
+                }
+                setTimeout(connect, 1e4);
+            });
+
+        }
+
+
+
+        function connectAnon() {
+            console.log('connecting to TMI(anon)...');
+            const num = new Uint32Array(1);
+            crypto.getRandomValues(num);
+
+            anon = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
+
+            anon.addEventListener('open', () => {
+                anon.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+            });
+
+            anon.addEventListener('message', (event) => {
+                const messages = event.data;
+
+                if(messages.startsWith('PING')) {
+                    anon.send(messages.replace("PING","PONG"));
+                }
+                else if(messages.startsWith(':tmi.twitch.tv CAP * ACK')) {
+                    anon.send('PASS ' + num[0]);
+                    anon.send('NICK justinfan' + num[0]);
+                }
+                else if(messages.startsWith(':tmi.twitch.tv 001')) {
+                    console.log('-CONNECTED(anon)-');
+                    anon.send('JOIN #' + channel);
+                }
+                else {
+                    handleMessages(messages);
+                }
+
+            });
+
+            anon.addEventListener('error', (event) => {
+                console.error('(anon)', event);
+            });
+
+            anon.addEventListener('close', (event) => {
+                console.log('(anon)', event.code, event.reason, event.wasClean);
+                setTimeout(connect, 1e4);
+            });
+
+        }
+
+
+
+
+        function handleMessages(messages) {
+
+            messages.split('\r\n').forEach(async message => {
+                message = parseIRC(message);
+                if(!message) return;
+
+                if(message.command === 'PRIVMSG') {
+                    const decoded = await decode(message.trailing, key);
+                    if(decoded !== null) {
+                        const msg = document.createElement('div');
+                        msg.classList.add('message');
+                        const user = document.createElement('span');
+                        user.style.color = message.tags.color;
+                        user.textContent = message.tags.display_name + ': ';
+                        const body = document.createElement('span');
+                        body.textContent = decoded;
+                        msg.append(user, body);
+                        box_div.append(msg);
+                        msg.scrollIntoView();
+                    }
+                }
+                else if(message.command === 'ROOMSTATE') {
+                    const newDelay = 1250*Math.max(1.5, parseInt(message.tags.slow));
+                    if(newDelay !== msgDelay) {
+                        clearInterval(clean);
+                        msgDelay = newDelay;
+                        clean = setInterval(cleanFunc, 8*msgDelay);
+                    }
+                }
+
+            });
+
+        }
+
+
+
+
+        function parseIRC(message) {
+
+            if(!message) return null;
+
+            const data = {
+                raw: message,
+                tags: {},
+                prefix: {},
+                command: '',
+                params: [],
+                trailing: ''
+            }
+            let nextChar = 0;
+
+            if(message.startsWith('@')) {
+                nextChar = message.indexOf(' ');
+                if(nextChar === -1) return null;
+
+                data.tags = parseTags(message.slice(1, nextChar));
+                message = message.slice(nextChar).trimStart();
+            }
+
+            if(message.startsWith(':')) {
+                nextChar = message.indexOf(' ');
+                if(nextChar === -1) return null;
+
+                data.prefix = parsePrefix(message.slice(1,nextChar));
+                message = message.slice(nextChar).trimStart();
+            }
+
+            nextChar = message.indexOf(':');
+            if(nextChar > -1) {
+                data.trailing = message.slice(nextChar+1);
+                message = message.slice(0, nextChar);
+            }
+
+            message = message.trim().split(/\s+/);
+            data.command = message.shift();
+            data.params = message;
+
+            if(!data.command) return null;
+
+            return data;
+        }
+
+
+
+        function parseTags(tags) {
+
+            const data = {}
+
+            if(!tags) return data;
+
+            tags.split(';').forEach(tag => {
+                if(tag) {
+                    let [key, value] = tag.split('=');
+
+                    key = key.replaceAll('-','_')
+                    value = (value || '').replace(/\\[:s\\rn]/g, m => escapeIRC[m]);
+
+                    data[key] = value;
+                }
+            });
+
+            return data;
+
+        }
+
+        const escapeIRC = {
+            '\\:': ';',
+            '\\s': ' ',
+            '\\\\': '\\',
+            '\\r': '',
+            '\\n': ''
+        }
+
+
+
+
+        function parsePrefix(prefix) {
+
+            const data = {
+                server: '',
+                nick: '',
+                user: '',
+                host: ''
+            }
+
+            if(!prefix) return data;
+            
+            let nextChar = prefix.indexOf('@');
+            if(nextChar > -1) {
+                data.host = prefix.slice(nextChar+1);
+                prefix = prefix.slice(0,nextChar);
+            }
+
+            nextChar = prefix.indexOf('!');
+            if(nextChar > -1) {
+                data.user = prefix.slice(nextChar+1);
+                prefix = prefix.slice(0,nextChar);
+            }
+
+            if(prefix.includes('.')) data.server = prefix;
+            else data.nick = prefix;
+
+            return data;
+
+        }
+
+    </script>
+</body>
+</html>
