@@ -171,14 +171,17 @@
         let channel, password, key;
         let twitch, anon;
 
-        (()=> {
+        function resize() {
             const aspect = (1+Math.sqrt(5))/2;
             const width = window.innerWidth;
             const height = window.innerHeight;
             const scale = Math.min(width, height/aspect);
             document.documentElement.style.setProperty('--width', scale + 'px');
             document.documentElement.style.setProperty('--height', height + 'px');
-        })()
+        }
+
+        resize();
+        window.onresize = resize;
 
         const auth_div = document.querySelector('.auth');
         const chat_div = document.querySelector('.chat');
