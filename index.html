@@ -11,7 +11,7 @@
         body {
             background-color: #18181f;
             margin: 0;
-            height: 100vh;
+            height: var(--height, 100vh);
             font-family: "Atkinson Hyperlegible Next", sans-serif;
             display: flex;
             justify-content: center;
@@ -50,8 +50,8 @@
         .chat {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            width: var(--width);
+            height: var(--height, 100vh);
+            width: var(--width, 100vw);
             font-size: 16px;
             line-height: 24px;
         }
@@ -126,7 +126,7 @@
             border: #9147ff 5px solid;
             font-size: 60px;
             padding: 30px 40px;
-            max-width: var(--width);
+            max-width: var(--width, 100vw);
             word-break: break-all;
             min-width: 250px;
             white-space: pre-wrap;
@@ -177,6 +177,7 @@
             const height = window.innerHeight;
             const scale = Math.min(width, height/aspect);
             document.documentElement.style.setProperty('--width', scale + 'px');
+            document.documentElement.style.setProperty('--height', height + 'px');
         })()
 
         const auth_div = document.querySelector('.auth');
@@ -312,6 +313,10 @@
                 chat_div.classList.remove('hidden');
                 connect();
                 connectAnon();
+
+                setTimeout(() => {
+                    input_div.scrollIntoView();
+                }, 50);
             }
         }
 
