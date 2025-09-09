@@ -846,7 +846,11 @@
                         msg.classList.add('message');
                         const user = document.createElement('span');
                         user.style.color = message.tags.color;
-                        user.textContent = message.tags.display_name + ': ';
+                        let name = message.tags.display_name;
+                        if(!/^\w{3,25}$/.test(name)) {
+                            name += ` (${message.prefix.nick})`;
+                        }
+                        user.textContent = name + ': ';
                         const body = document.createElement('span');
                         body.textContent = decoded;
                         msg.append(user, body);
