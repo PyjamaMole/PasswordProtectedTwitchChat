@@ -301,13 +301,12 @@
         join_div.onclick = async () => {
             join_div.blur();
             if(/^\w{3,25}$/.test(channel_div.textContent) && pass_div.textContent !== '') {
-                channel = channel_div.textContent;
+                channel = channel_div.textContent.toLowerCase();
                 password = pass_div.textContent;
                 key = await generateKey(password, channel);
 
                 setup_div.classList.add('hidden');
                 chat_div.classList.remove('hidden');
-                input_div.scrollIntoView();
                 connect();
                 connectAnon();
             }
@@ -979,5 +978,4 @@
 
     </script>
 </body>
-
 </html>
