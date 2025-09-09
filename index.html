@@ -129,6 +129,7 @@
             max-width: var(--width);
             word-break: break-all;
             min-width: 250px;
+            white-space: pre-wrap;
         }
 
         .query:focus {
@@ -152,8 +153,8 @@
 <body>
     <button class="button auth hidden">Login</button>
     <div class="pass-box hidden">
-        <div class="channel query" contenteditable="true"></div>
-        <div class="password query" contenteditable="true"></div>
+        <div class="channel query" contenteditable="plaintext-only"></div>
+        <div class="password query" contenteditable="plaintext-only"></div>
         <button class="join button">Join</button>
     </div>
     <div class="chat hidden">
@@ -188,8 +189,8 @@
         const join_div = document.querySelector('.join');
 
         input_div.oninput = clearInput;
-        channel_div.oninput = clearInput;
-        pass_div.oninput = clearInput;
+        channel_div.oninput = clearStrict;
+        pass_div.oninput = clearStrict;
         input_div.addEventListener('keydown', (event) => {
             if(event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -204,6 +205,14 @@
 
         function clearInput(event) {
             const input = event.target;
+            if(input.textContent === '') {
+                input.innerHTML = '';
+            }
+        }
+
+        function clearStrict(event) {
+            const input = event.target;
+            input.textContent = input.textContent.replace(/\s+/g,'');
             if(input.textContent === '') {
                 input.innerHTML = '';
             }
