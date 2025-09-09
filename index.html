@@ -17,6 +17,7 @@
             justify-content: center;
             align-items: center;
             color: #efeff1;
+            overflow: hidden;
         }
 
         .hidden {
@@ -171,18 +172,6 @@
         let channel, password, key;
         let twitch, anon;
 
-        function resize() {
-            const aspect = (1+Math.sqrt(5))/2;
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            const scale = Math.min(width, height/aspect);
-            document.documentElement.style.setProperty('--width', scale + 'px');
-            document.documentElement.style.setProperty('--height', height + 'px');
-        }
-
-        resize();
-        window.onresize = resize;
-
         const auth_div = document.querySelector('.auth');
         const chat_div = document.querySelector('.chat');
         const input_div = document.querySelector('.input');
@@ -191,6 +180,20 @@
         const channel_div = document.querySelector('.channel');
         const pass_div = document.querySelector('.password');
         const join_div = document.querySelector('.join');
+
+        function resize() {
+            const aspect = (1+Math.sqrt(5))/2;
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const scale = Math.min(width, height/aspect);
+            document.documentElement.style.setProperty('--width', scale + 'px');
+            document.documentElement.style.setProperty('--height', height + 'px');
+            if(!chat_div.classList.contains('hidden')) {
+                input_div.scrollIntoView();
+            }
+        }
+        resize();
+        window.onresize = resize;
 
         input_div.oninput = clearInput;
         channel_div.oninput = clearInput;
