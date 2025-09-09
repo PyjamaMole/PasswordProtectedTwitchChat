@@ -248,8 +248,8 @@
 
         function sendMessages(messages) {
             if(messages.length > 0) {
+                if(canSendMessage) input_div.classList.add('disabled');
                 canSendMessage = false;
-                input_div.classList.add('disabled');
                 const message = messages.shift();
                 twitch.send('PRIVMSG #' + channel + ' :' + message);
                 setTimeout(() => {
@@ -257,8 +257,8 @@
                 }, msgDelay);
             }
             else {
+                if(!canSendMessage) input_div.classList.remove('disabled');
                 canSendMessage = true;
-                input_div.classList.remove('disabled');
             }
         }
 
@@ -772,8 +772,8 @@
                     twitch.send('NICK '+ username);
                 }
                 else if(messages.startsWith(':tmi.twitch.tv 001')) {
+                    if(!canSendMessage) input_div.classList.remove('disabled');
                     canSendMessage = true;
-                    input_div.classList.remove('disabled');
                     console.log('-CONNECTED-');
                 }
 
@@ -784,8 +784,8 @@
             });
 
             twitch.addEventListener('close', (event) => {
+                if(canSendMessage) input_div.classList.add('disabled');
                 canSendMessage = false;
-                input_div.classList.add('disabled');
                 console.log(event.code, event.reason, event.wasClean);
                 if(!validateToken()) {
                     chat_div.classList.add('hidden');
