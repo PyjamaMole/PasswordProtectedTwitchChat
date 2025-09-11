@@ -279,7 +279,7 @@
 
         const UTF16 = {
             encode: UTF16encode,
-            decoder: new TextDecoder('utf-16'),
+            decoder: new TextDecoder('utf-16le'),
             decode(arr) {
                 return this.decoder.decode(arr);
             }
@@ -536,7 +536,7 @@
                 if(bits !== 0) {
                     const pad = new Uint16Array(1);
                     crypto.getRandomValues(pad);
-                    nums[ind] = ((pad << bits) | buffer) & 0x7FFF;
+                    nums[ind] = ((pad[0] << bits) | buffer) & 0x7FFF;
                 }
 
                 const codePoints = nums.map(num => {
@@ -560,7 +560,7 @@
 
         function fromBase32768(string) {
             const first = string.charCodeAt(0)
-            if(first < 0x3400 | first >= 0x4400 | string.length < 17) {
+            if(first < 0x3400 || first >= 0x4400 || string.length < 17) {
                 return null;
             }
             const nums = new Array(string.length);
@@ -818,11 +818,11 @@
                 console.error(event);
             });
 
-            twitch.addEventListener('close', (event) => {
+            twitch.addEventListener('close', async (event) => {
                 if(canSendMessage) input_div.classList.add('disabled');
                 canSendMessage = false;
                 console.log(event.code, event.reason, event.wasClean);
-                if(!validateToken()) {
+                if(!(await validateToken())) {
                     chat_div.classList.add('hidden');
                     requestAuth();
                     return;
