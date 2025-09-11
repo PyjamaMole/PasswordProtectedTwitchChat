@@ -307,11 +307,11 @@
 
             if(hashData.has('c')) {
                 channel = hashData.get('c');
-                channel_div.style.setProperty('--chan', channel);
+                channel_div.style.setProperty('--chan', `"${channel}"`);
             }
             if(hashData.has('p')) {
                 password = atob(hashData.get('p'));
-                pass_div.style.setProperty('--pass', password);
+                pass_div.style.setProperty('--pass', `"${password}"`);
             }
 
             setup_div.classList.remove('hidden');
