@@ -350,11 +350,11 @@
         function encodePass(pass) {
             const bytes = UTF8.encode(pass);
             const aeb = Array.from(bytes, b => String.fromCharCode(b)).join('');
-            return atob(aeb).replaceAll('=','');
+            return btoa(aeb).replaceAll('=','');
         }
 
         function decodePass(enc) {
-            const aeb = btoa(enc);
+            const aeb = atob(enc);
             const bytes = new Uint8Array(aeb.split('').map(b => b.charCodeAt(0)));
             return UTF8.decode(bytes);
         }
