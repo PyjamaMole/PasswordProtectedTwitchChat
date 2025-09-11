@@ -324,7 +324,7 @@
                 channel = chan_input;
                 password = pass_input;
 
-                location.hash = `c=${channel}&p=${btoa(password)}`;
+                location.hash = `c=${channel}&p=${btoa(password).replaceAll('=','')}`;
                 key = await generateKey(password, channel);
 
                 setup_div.classList.add('hidden');
