@@ -311,8 +311,10 @@
                 channel_div.style.setProperty('--chan', `"${channel}"`);
             }
             if(hashData.has('p')) {
-                password = decodePass(hashData.get('p'));
-                pass_div.style.setProperty('--pass', `"${password}"`);
+                try {
+                    password = decodePass(hashData.get('p'));
+                    pass_div.style.setProperty('--pass', `"${password}"`);
+                } catch (e) {}
             }
 
             setup_div.classList.remove('hidden');
