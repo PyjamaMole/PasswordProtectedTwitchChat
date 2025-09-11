@@ -141,13 +141,13 @@
         }
 
         .channel:empty::before {
-            content: "Channel";
+            content: var(--chan, "Channel");
             color: #adadb8;
             cursor: text;
         }
 
         .password:empty::before {
-            content: "Password";
+            content: var(--pass, "Password");
             color: #adadb8;
             cursor: text;
         }
@@ -306,10 +306,12 @@
             }
 
             if(hashData.has('c')) {
-                channel_div.textContent = hashData.get('c');
+                channel = hashData.get('c');
+                channel_div.style.setProperty('--chan', channel);
             }
             if(hashData.has('p')) {
-                pass_div.textContent = atob(hashData.get('p'));
+                password = atob(hashData.get('p'));
+                pass_div.style.setProperty('--pass', password);
             }
 
             setup_div.classList.remove('hidden');
@@ -318,9 +320,15 @@
 
         join_div.onclick = async () => {
             join_div.blur();
-            const chan_input = channel_div.textContent.replace(/\s+/g, '').toLowerCase();
-            const pass_input = pass_div.textContent.replace(/\s+/g, '');
-            if(/^\w{3,25}$/.test(chan_input) && pass_input !== '') {
+            const chan_input = (channel_div.textContent || channel).replace(/\s+/g, '').toLowerCase();
+            const pass_input = (pass_div.textContent || password).replace(/\s+/g, '');
+            if(!/^\w{3,25}$/.test(chan_input)) {
+                channel_div.classList.add('disabled');
+            }
+            else if(pass_input === '') {
+                pass_div.classList.add('disabled');
+            }
+            else {
                 channel = chan_input;
                 password = pass_input;
 
