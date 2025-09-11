@@ -305,13 +305,11 @@
                 return;
             }
 
-            const searchRaw = location.search;
-            const searchData = new URLSearchParams(searchRaw);
-            if(searchData.has('c')) {
-                channel_div.textContent = searchData.get('c');
+            if(hashData.has('c')) {
+                channel_div.textContent = hashData.get('c');
             }
-            if(searchData.has('p')) {
-                pass_div.textContent = atob(searchData.get('p'));
+            if(hashData.has('p')) {
+                pass_div.textContent = atob(hashData.get('p'));
             }
 
             setup_div.classList.remove('hidden');
@@ -326,7 +324,7 @@
                 channel = chan_input;
                 password = pass_input;
 
-                location.search = `c=${channel}&p=${btoa(password)}`;
+                location.hash = `c=${channel}&p=${btoa(password)}`;
                 key = await generateKey(password, channel);
 
                 setup_div.classList.add('hidden');
